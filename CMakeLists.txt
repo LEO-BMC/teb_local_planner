@@ -216,6 +216,14 @@ target_link_libraries(test_optim_node
    ${catkin_LIBRARIES}
 )
 
+add_executable(occupy_planner src/occupy_planner.cpp)
+
+target_link_libraries(occupy_planner
+   teb_local_planner
+   ${EXTERNAL_LIBS}
+   ${catkin_LIBRARIES}
+)
+
 
 #############
 ## Install ##

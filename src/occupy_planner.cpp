@@ -44,6 +44,13 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <memory>
+
 using namespace teb_local_planner; // it is ok here to import everything for testing purposes
 
 // ============= Global Variables ================
@@ -76,11 +83,42 @@ void CB_clicked_points(const geometry_msgs::PointStampedConstPtr &point_msg);
 void CB_via_points(const nav_msgs::Path::ConstPtr &via_points_msg);
 void CB_setObstacleVelocity(const geometry_msgs::TwistConstPtr &twist_msg, const unsigned int id);
 
+std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+bool get_affine(Eigen::Affine3f &affine,
+                const std::string &frame_source,
+                const std::string &frame_target,
+                const ros::Time &time);
+
+geometry_msgs::PoseStamped::ConstPtr msg_pose_stamped_start_;
+geometry_msgs::PoseStamped::ConstPtr msg_pose_stamped_goal_;
+
+void callback_pose_stamped_start(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_start);
+void callback_pose_stamped_goal(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_goal);
+
+std::shared_ptr<ros::Subscriber> sub_pose_stamped_start_;
+std::shared_ptr<ros::Subscriber> sub_pose_stamped_goal_;
+
 // =============== Main function =================
 int main(int argc, char **argv) {
   ros::init(argc, argv, "test_optim_node");
   ros::NodeHandle n("~");
 
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>();
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+  sub_pose_stamped_start_ = std::make_shared<ros::Subscriber>(
+      n.subscribe(
+          "/occupy/pose_stamped_start",
+          1,
+          callback_pose_stamped_start));
+
+  sub_pose_stamped_goal_ = std::make_shared<ros::Subscriber>(
+      n.subscribe(
+          "/occupy/pose_stamped_goal",
+          1,
+          callback_pose_stamped_goal));
 
   // load ros parameters from node handle
   config.loadRosParamFromNodeHandle(n);
@@ -113,9 +151,9 @@ int main(int argc, char **argv) {
 //  obst_vector.push_back( boost::make_shared<PointObstacle>(-1.5,-0.5) );
 
   // Dynamic obstacles
-  Eigen::Vector2d vel(0.1, -0.3);
+  Eigen::Vector2d vel(0, 0);
   obst_vector.at(0)->setCentroidVelocity(vel);
-  vel = Eigen::Vector2d(-0.3, -0.2);
+  vel = Eigen::Vector2d(0, 0);
   obst_vector.at(1)->setCentroidVelocity(vel);
 
   /*
@@ -131,7 +169,7 @@ int main(int argc, char **argv) {
 
   for (unsigned int i = 0; i < obst_vector.size(); ++i) {
     // setup callbacks for setting obstacle velocities
-    std::string topic = "/test_optim_node/obstacle_" + std::to_string(i) + "/cmd_vel";
+    std::string topic = "/occupy_planner_exe/obstacle_" + std::to_string(i) + "/cmd_vel";
     obst_vel_subs.push_back(n.subscribe<geometry_msgs::Twist>(topic, 1, boost::bind(&CB_setObstacleVelocity, _1, i)));
 
     //CreateInteractiveMarker(obst_vector.at(i)[0],obst_vector.at(i)[1],i,&marker_server, &CB_obstacle_marker);  
@@ -163,8 +201,52 @@ int main(int argc, char **argv) {
 
 // Planning loop
 void CB_mainCycle(const ros::TimerEvent &e) {
-  planner->plan(PoseSE2(0, 0, 0),
-                PoseSE2(30, 0, 0)); // hardcoded start and goal for testing purposes
+  if (msg_pose_stamped_start_ == nullptr || msg_pose_stamped_goal_ == nullptr)
+    return;
+
+  Eigen::Affine3f affine;
+  bool success = get_affine(affine, msg_pose_stamped_start_->header.frame_id, "base_link", ros::Time());
+  if (!success)
+    return;
+
+  auto pose_to_matrix = [](const geometry_msgs::Pose &pose) {
+    Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();
+    const auto &pos = pose.position;
+    const auto &ori = pose.orientation;
+    Eigen::Quaternionf quat(ori.w, ori.x, ori.y, ori.z);
+    mat.topLeftCorner<3, 3>() = quat.toRotationMatrix();
+    mat.topRightCorner<3, 1>() = Eigen::Vector3f(pos.x, pos.y, pos.z);
+    return mat;
+  };
+  auto mat_start = pose_to_matrix(msg_pose_stamped_start_->pose);
+  auto mat_goal = pose_to_matrix(msg_pose_stamped_goal_->pose);
+
+  Eigen::Affine3f affine_trans_start;
+  affine_trans_start.matrix() = affine * mat_start;
+  Eigen::Affine3f affine_trans_goal;
+  affine_trans_goal.matrix() = affine * mat_goal;
+
+  auto affine_to_yaw = [](const Eigen::Affine3f &affine) {
+    Eigen::Quaternionf quat(affine.rotation());
+    tf2::Quaternion quat_tf(quat.x(), quat.y(), quat.z(), quat.w());
+    return tf2::getYaw(quat_tf);
+  };
+
+  double yaw_start = affine_to_yaw(affine_trans_start);
+  double yaw_goal = affine_to_yaw(affine_trans_goal);
+
+  const auto &position_start = affine_trans_start.translation();
+  const auto &position_goal = affine_trans_goal.translation();
+
+  planner->plan(
+      PoseSE2(
+          position_start.x(),
+          position_start.y(),
+          yaw_start),
+      PoseSE2(
+          position_goal.x(),
+          position_goal.y(),
+          yaw_goal));
 }
 
 // Visualization loop
@@ -306,4 +388,48 @@ void CB_setObstacleVelocity(const geometry_msgs::TwistConstPtr &twist_msg, const
 
   Eigen::Vector2d vel(twist_msg->linear.x, twist_msg->linear.y);
   obst_vector.at(id)->setCentroidVelocity(vel);
+}
+
+void callback_pose_stamped_start(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_start) {
+  msg_pose_stamped_start_ = msg_pose_stamped_start;
+}
+
+void callback_pose_stamped_goal(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_goal) {
+  msg_pose_stamped_goal_ = msg_pose_stamped_goal;
+}
+
+bool get_affine(Eigen::Affine3f &affine,
+                const std::string &frame_source,
+                const std::string &frame_target,
+                const ros::Time &time) {
+
+  auto get_transform_latest = [&](const std::string &source,
+                                            const std::string &target)
+      -> geometry_msgs::TransformStamped::Ptr {
+    geometry_msgs::TransformStamped::Ptr transform_stamped = nullptr;
+    try {
+      transform_stamped.reset(new geometry_msgs::TransformStamped);
+
+      *transform_stamped = tf_buffer_->lookupTransform(
+          target,
+          source,
+          time);
+    }
+    catch (tf2::TransformException &ex) {
+      transform_stamped = nullptr;
+      ROS_WARN("%s", ex.what());
+    }
+    return transform_stamped;
+  };
+
+  geometry_msgs::TransformStamped::Ptr trans_init_ = get_transform_latest(
+      frame_source,
+      frame_target);
+  if (trans_init_ == nullptr) {
+    return false;
+  }
+
+  affine = tf2::transformToEigen(*trans_init_).cast<float>();
+
+  return true;
 }
