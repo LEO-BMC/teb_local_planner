@@ -6,7 +6,9 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /GridMap1/Status1
+        - /path_follower1
+        - /path_follower1/poses1
+        - /pure_pursuit1
       Splitter Ratio: 0.5
     Tree Height: 559
   - Class: rviz/Selection
@@ -75,7 +77,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -93,36 +95,31 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /occupy_planner_exe/local_plan
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Arrow Length: 0.30000001192092896
       Axes Length: 0.30000001192092896
       Axes Radius: 0.009999999776482582
       Class: rviz/PoseArray
       Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.07000000029802322
-      Head Radius: 0.029999999329447746
+      Enabled: false
+      Head Length: 0.30000001192092896
+      Head Radius: 0.25
       Name: PoseArray
-      Shaft Length: 0.23000000417232513
-      Shaft Radius: 0.009999999776482582
-      Shape: Arrow (Flat)
+      Shaft Length: 0.30000001192092896
+      Shaft Radius: 0.10000000149011612
+      Shape: Arrow (3D)
       Topic: /occupy_planner_exe/teb_poses
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /occupy_planner_exe/teb_markers
       Name: Marker
       Namespaces:
-        GraphEdges: true
-        GraphVertices: true
-        PointObstacles: true
-        PolyObstacles: true
-        RobotFootprintModel: true
-        TebContainer: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
       Enabled: true
@@ -214,7 +211,7 @@ Visualization Manager:
       Color: 200; 200; 200
       Color Layer: cost
       Color Transformer: GridMapLayer
-      Enabled: true
+      Enabled: false
       Height Layer: cost
       Height Transformer: Flat
       History Length: 1
@@ -228,6 +225,79 @@ Visualization Manager:
       Topic: /occupy/grid_map_map_builder
       Unreliable: false
       Use Rainbow: false
+      Value: false
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Map
+      Topic: /occupy/costmap
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Arrow Length: 0.30000001192092896
+          Axes Length: 0.30000001192092896
+          Axes Radius: 0.009999999776482582
+          Class: rviz/PoseArray
+          Color: 237; 212; 0
+          Enabled: true
+          Head Length: 0.4000000059604645
+          Head Radius: 0.6499999761581421
+          Name: poses
+          Shaft Length: 0.6000000238418579
+          Shaft Radius: 0.30000001192092896
+          Shape: Arrow (3D)
+          Topic: /path_follower/final_waypoints_rviz
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 25; 255; 0
+          Enabled: true
+          Name: footprint
+          Topic: /path_follower/footprint
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 25; 255; 0
+          Enabled: true
+          Name: safety
+          Topic: /path_follower/footprint_with_safety
+          Unreliable: false
+          Value: true
+      Enabled: true
+      Name: path_follower
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /trajectory_circle_mark
+          Name: trajectory_circle_mark
+          Namespaces:
+            trajectory_circle_marker: true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /next_target_mark
+          Name: next_target_mark
+          Namespaces:
+            next_target_marker: true
+          Queue Size: 100
+          Value: true
+      Enabled: true
+      Name: pure_pursuit
+    - Class: rviz/Axes
+      Enabled: true
+      Length: 5
+      Name: Axes
+      Radius: 0.10000000149011612
+      Reference Frame: base_link
       Value: true
   Enabled: true
   Global Options:
@@ -256,26 +326,21 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 73.34651184082031
+      Angle: -1.330001950263977
+      Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: 0.7633212804794312
-        Y: 0.6511111259460449
-        Z: -0.06288410723209381
-      Focal Shape Fixed Size: false
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Scale: 23.100156784057617
       Target Frame: base_link
-      Value: Orbit (rviz)
-      Yaw: 3.105376720428467
+      Value: TopDownOrtho (rviz)
+      X: 0.831335186958313
+      Y: -1.0171152353286743
     Saved: ~
 Window Geometry:
   Displays:
@@ -293,5 +358,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1354
-  X: 466
+  X: 465
   Y: 0
