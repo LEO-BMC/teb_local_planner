@@ -143,18 +143,18 @@ int main(int argc, char **argv) {
   // interactive marker server for simulated dynamic obstacles
   interactive_markers::InteractiveMarkerServer marker_server("marker_obstacles");
 
-  obst_vector.push_back(boost::make_shared<PointObstacle>(-3, 5));
-  obst_vector.push_back(boost::make_shared<PointObstacle>(6, 5));
-  obst_vector.push_back(boost::make_shared<PointObstacle>(0, 5));
+//  obst_vector.push_back(boost::make_shared<PointObstacle>(-3, 5));
+//  obst_vector.push_back(boost::make_shared<PointObstacle>(6, 5));
+//  obst_vector.push_back(boost::make_shared<PointObstacle>(0, 5));
 //  obst_vector.push_back( boost::make_shared<LineObstacle>(1,1.5,1,-1.5) ); //90 deg
 //  obst_vector.push_back( boost::make_shared<LineObstacle>(1,0,-1,0) ); //180 deg
 //  obst_vector.push_back( boost::make_shared<PointObstacle>(-1.5,-0.5) );
 
   // Dynamic obstacles
-  Eigen::Vector2d vel(0, 0);
-  obst_vector.at(0)->setCentroidVelocity(vel);
-  vel = Eigen::Vector2d(0, 0);
-  obst_vector.at(1)->setCentroidVelocity(vel);
+//  Eigen::Vector2d vel(0, 0);
+//  obst_vector.at(0)->setCentroidVelocity(vel);
+//  vel = Eigen::Vector2d(0, 0);
+//  obst_vector.at(1)->setCentroidVelocity(vel);
 
   /*
   PolygonObstacle* polyobst = new PolygonObstacle;
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
     std::string topic = "/occupy_planner_exe/obstacle_" + std::to_string(i) + "/cmd_vel";
     obst_vel_subs.push_back(n.subscribe<geometry_msgs::Twist>(topic, 1, boost::bind(&CB_setObstacleVelocity, _1, i)));
 
-    //CreateInteractiveMarker(obst_vector.at(i)[0],obst_vector.at(i)[1],i,&marker_server, &CB_obstacle_marker);  
+    //CreateInteractiveMarker(obst_vector.at(i)[0],obst_vector.at(i)[1],i,&marker_server, &CB_obstacle_marker);
     // Add interactive markers for all point obstacles
     boost::shared_ptr<PointObstacle> pobst = boost::dynamic_pointer_cast<PointObstacle>(obst_vector.at(i));
     if (pobst) {
@@ -238,10 +238,14 @@ void CB_mainCycle(const ros::TimerEvent &e) {
   const auto &position_start = affine_trans_start.translation();
   const auto &position_goal = affine_trans_goal.translation();
 
+  float extend_length = 4.0f;  // m
+  float extend_x = extend_length * std::cos(yaw_start);
+  float extend_y = extend_length * std::sin(yaw_start);
+
   planner->plan(
       PoseSE2(
-          position_start.x(),
-          position_start.y(),
+          position_start.x() + extend_x,
+          position_start.y() + extend_y,
           yaw_start),
       PoseSE2(
           position_goal.x(),

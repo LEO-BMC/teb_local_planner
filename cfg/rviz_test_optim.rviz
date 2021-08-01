@@ -102,7 +102,7 @@ Visualization Manager:
       Axes Radius: 0.009999999776482582
       Class: rviz/PoseArray
       Color: 255; 25; 0
-      Enabled: false
+      Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.25
       Name: PoseArray
@@ -111,15 +111,20 @@ Visualization Manager:
       Shape: Arrow (3D)
       Topic: /occupy_planner_exe/teb_poses
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /occupy_planner_exe/teb_markers
       Name: Marker
       Namespaces:
-        {}
+        GraphEdges: true
+        GraphVertices: true
+        PointObstacles: true
+        PolyObstacles: true
+        RobotFootprintModel: true
+        TebContainer: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
       Enabled: true
@@ -279,7 +284,7 @@ Visualization Manager:
           Marker Topic: /trajectory_circle_mark
           Name: trajectory_circle_mark
           Namespaces:
-            trajectory_circle_marker: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Marker
@@ -287,7 +292,7 @@ Visualization Manager:
           Marker Topic: /next_target_mark
           Name: next_target_mark
           Namespaces:
-            next_target_marker: true
+            {}
           Queue Size: 100
           Value: true
       Enabled: true
@@ -326,7 +331,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -1.330001950263977
+      Angle: -1.545001745223999
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -336,11 +341,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 23.100156784057617
+      Scale: 14.958343505859375
       Target Frame: base_link
       Value: TopDownOrtho (rviz)
-      X: 0.831335186958313
-      Y: -1.0171152353286743
+      X: 7.024843692779541
+      Y: -1.1245626211166382
     Saved: ~
 Window Geometry:
   Displays:
@@ -358,5 +363,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1354
-  X: 465
-  Y: 0
+  X: 2442
+  Y: 95
