@@ -238,7 +238,7 @@ void CB_mainCycle(const ros::TimerEvent &e) {
   const auto &position_start = affine_trans_start.translation();
   const auto &position_goal = affine_trans_goal.translation();
 
-  float extend_length = 4.0f;  // m
+  float extend_length = 1.0f;  // m
   float extend_x = extend_length * std::cos(yaw_start);
   float extend_y = extend_length * std::sin(yaw_start);
 
