@@ -102,7 +102,7 @@ std::shared_ptr<ros::Subscriber> sub_pose_stamped_goal_;
 
 // =============== Main function =================
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "test_optim_node");
+  ros::init(argc, argv, "occupy_planner_node");
   ros::NodeHandle n("~");
 
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>();
