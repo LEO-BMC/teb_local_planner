@@ -40,7 +40,11 @@ footprint_model: # types: "point", "circular", "two_circles", "line", "polygon"
   front_radius: 0.2 # for type "two_circles"
   rear_offset: 0.2 # for type "two_circles"
   rear_radius: 0.2 # for type "two_circles"
-  vertices: [ [ -0.84, -1.25 ], [ 4.66, -1.25 ], [ 4.66, 1.25 ], [ -0.84, 1.25 ] ] # for type "polygon"
+#  vertices: [ [ 4.82, -1.25 ], [ -0.68, -1.25 ], [ -0.68, 1.25 ], [ 4.82, 1.25 ] ] # for type "polygon"
+  vertices: [ [ 5.32, -1.55 ], [ -1.18, -1.55 ], [ -1.18, 1.55 ], [ 5.32, 1.55 ] ]  # polygon with safety distances
+                                                                                    # vehicle_length_safety_dist: 0.5 [m]
+                                                                                    # vehicle_width_safety_dist: 0.3  [m]
+                                                                                    # Calculated wrt path_follower footprint inputs !
 
   # GoalTolerance
 
