@@ -39,6 +39,7 @@ class OccupyPlanner {
 
   geometry_msgs::PoseStamped::ConstPtr msg_pose_stamped_start_;
   geometry_msgs::PoseStamped::ConstPtr msg_pose_stamped_goal_;
+  geometry_msgs::PoseArray::ConstPtr msg_pose_array_hybrid_astar_;
 
   std::shared_ptr<ros::Subscriber> sub_pose_stamped_start_;
   std::shared_ptr<ros::Subscriber> sub_pose_stamped_goal_;
@@ -66,6 +67,7 @@ class OccupyPlanner {
 
   void callback_pose_stamped_start(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stampeXd_start);
   void callback_pose_stamped_goal(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_goal);
+  void callback_pose_array_hybrid_astar(const geometry_msgs::PoseArray::ConstPtr &msg_poses);
 };
 
 }  // namespace occupy_planner

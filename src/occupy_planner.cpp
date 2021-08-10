@@ -1,6 +1,8 @@
 #include "teb_local_planner/occupy_planner.h"
 #include <tf2_eigen/tf2_eigen.h>
 #include <Eigen/Geometry>
+#include <geometry_msgs/PoseArray.h>
+#include <algorithm>
 
 namespace occupy_planner {
 
@@ -45,7 +47,7 @@ OccupyPlanner::OccupyPlanner(std::shared_ptr<ros::NodeHandle> nh_ptr) :
       nh_ptr_->subscribe(
           "/poses_hybrid_astar",
           1,
-          &OccupyPlanner::callback_pose_stamped_goal,
+          &OccupyPlanner::callback_pose_array_hybrid_astar,
           this));
 
   // interactive marker server for simulated dynamic obstacles
@@ -157,15 +159,31 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
   float extend_x = extend_length * std::cos(yaw_start);
   float extend_y = extend_length * std::sin(yaw_start);
 
-  planner->plan(
-      teb_local_planner::PoseSE2(
-          position_start.x() + extend_x,
-          position_start.y() + extend_y,
-          yaw_start),
-      teb_local_planner::PoseSE2(
-          position_goal.x(),
-          position_goal.y(),
-          yaw_goal));
+//  planner->plan(
+//      teb_local_planner::PoseSE2(
+//          position_start.x() + extend_x,
+//          position_start.y() + extend_y,
+//          yaw_start),
+//      teb_local_planner::PoseSE2(
+//          position_goal.x(),
+//          position_goal.y(),
+//          yaw_goal));
+
+  const auto &poses_input = msg_pose_array_hybrid_astar_->poses;
+  std::vector<geometry_msgs::PoseStamped> poses_fixed(poses_input.size());
+  std::transform(poses_input.begin(),
+                 poses_input.end(),
+                 poses_fixed.begin(),
+                 [this](const geometry_msgs::Pose &pose_in) {
+                   geometry_msgs::PoseStamped pose_out;
+                   pose_out.pose = pose_in;
+                   pose_out.header = msg_pose_array_hybrid_astar_->header;
+                   return pose_out;
+                 });
+
+  //plan(const std::vector<geometry_msgs::PoseStamped>& initial_plan, const geometry_msgs::Twist* start_vel = NULL, bool free_goal_vel=false) = 0;
+
+  planner->plan(poses_fixed);
   ROS_INFO_STREAM("did a plan");
 }
 
@@ -324,6 +342,10 @@ void OccupyPlanner::callback_pose_stamped_start(const geometry_msgs::PoseStamped
 
 void OccupyPlanner::callback_pose_stamped_goal(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_goal) {
   msg_pose_stamped_goal_ = msg_pose_stamped_goal;
+}
+
+void OccupyPlanner::callback_pose_array_hybrid_astar(const geometry_msgs::PoseArray::ConstPtr &msg_poses) {
+  msg_pose_array_hybrid_astar_ = msg_poses;
 }
 
 bool OccupyPlanner::get_affine(Eigen::Affine3f &affine,
