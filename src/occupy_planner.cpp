@@ -86,18 +86,21 @@ OccupyPlanner::OccupyPlanner(std::shared_ptr<ros::NodeHandle> nh_ptr) :
   robot_model = teb_local_planner::TebLocalPlannerROS::getRobotFootprintFromParamServer(*nh_ptr_);
 
   // Setup planner (homotopy class planning or just the local teb planner)
-  if (config.hcp.enable_homotopy_class_planning)
+  if (config.hcp.enable_homotopy_class_planning) {
     planner = teb_local_planner::PlannerInterfacePtr(new teb_local_planner::HomotopyClassPlanner(config,
                                                                                                  &obst_vector,
                                                                                                  robot_model,
                                                                                                  visual,
                                                                                                  &via_points));
-  else
+    ROS_INFO_STREAM("Initialized HomotopyClassPlanner");
+  } else {
     planner = teb_local_planner::PlannerInterfacePtr(new teb_local_planner::TebOptimalPlanner(config,
                                                                                               &obst_vector,
                                                                                               robot_model,
                                                                                               visual,
                                                                                               &via_points));
+    ROS_INFO_STREAM("Initialized TebOptimalPlanner");
+  }
 
   no_fixed_obstacles = obst_vector.size();
 
@@ -120,44 +123,52 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
     ROS_WARN_STREAM("msg_pose_stamped_start_ or msg_pose_stamped_goal_ is nullptr");
     return;
   }
-  Eigen::Affine3f affine;
-  bool success = get_affine(affine, msg_pose_stamped_start_->header.frame_id, "base_link", ros::Time());
-  if (!success) {
-    ROS_WARN_STREAM("Couldn't obtain a tf in CB_mainCycle");
+  if (poses_fixed_.size() < 5) {
+    ROS_WARN_STREAM("poses_fixed_.size() < 5");
     return;
   }
-  auto pose_to_matrix = [](const geometry_msgs::Pose &pose) {
-    Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();
-    const auto &pos = pose.position;
-    const auto &ori = pose.orientation;
-    Eigen::Quaternionf quat(ori.w, ori.x, ori.y, ori.z);
-    mat.topLeftCorner<3, 3>() = quat.toRotationMatrix();
-    mat.topRightCorner<3, 1>() = Eigen::Vector3f(pos.x, pos.y, pos.z);
-    return mat;
-  };
-  auto mat_start = pose_to_matrix(msg_pose_stamped_start_->pose);
-  auto mat_goal = pose_to_matrix(msg_pose_stamped_goal_->pose);
+//  if (msg_pose_array_hybrid_astar_ == nullptr) {
+//    ROS_WARN_STREAM("msg_pose_array_hybrid_astar_ is nullptr");
+//    return;
+//  }
+//  Eigen::Affine3f affine;
+//  bool success = get_affine(affine, msg_pose_stamped_start_->header.frame_id, "base_link", ros::Time());
+//  if (!success) {
+//    ROS_WARN_STREAM("Couldn't obtain a tf in CB_mainCycle");
+//    return;
+//  }
+//  auto pose_to_matrix = [](const geometry_msgs::Pose &pose) {
+//    Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();
+//    const auto &pos = pose.position;
+//    const auto &ori = pose.orientation;
+//    Eigen::Quaternionf quat(ori.w, ori.x, ori.y, ori.z);
+//    mat.topLeftCorner<3, 3>() = quat.toRotationMatrix();
+//    mat.topRightCorner<3, 1>() = Eigen::Vector3f(pos.x, pos.y, pos.z);
+//    return mat;
+//  };
+//  auto mat_start = pose_to_matrix(msg_pose_stamped_start_->pose);
+//  auto mat_goal = pose_to_matrix(msg_pose_stamped_goal_->pose);
+//
+//  Eigen::Affine3f affine_trans_start;
+//  affine_trans_start.matrix() = affine * mat_start;
+//  Eigen::Affine3f affine_trans_goal;
+//  affine_trans_goal.matrix() = affine * mat_goal;
 
-  Eigen::Affine3f affine_trans_start;
-  affine_trans_start.matrix() = affine * mat_start;
-  Eigen::Affine3f affine_trans_goal;
-  affine_trans_goal.matrix() = affine * mat_goal;
-
-  auto affine_to_yaw = [](const Eigen::Affine3f &affine) {
-    Eigen::Quaternionf quat(affine.rotation());
-    tf2::Quaternion quat_tf(quat.x(), quat.y(), quat.z(), quat.w());
-    return tf2::getYaw(quat_tf);
-  };
-
-  double yaw_start = affine_to_yaw(affine_trans_start);
-  double yaw_goal = affine_to_yaw(affine_trans_goal);
-
-  const auto &position_start = affine_trans_start.translation();
-  const auto &position_goal = affine_trans_goal.translation();
-
-  float extend_length = 1.0f;  // m
-  float extend_x = extend_length * std::cos(yaw_start);
-  float extend_y = extend_length * std::sin(yaw_start);
+//  auto affine_to_yaw = [](const Eigen::Affine3f &affine) {
+//    Eigen::Quaternionf quat(affine.rotation());
+//    tf2::Quaternion quat_tf(quat.x(), quat.y(), quat.z(), quat.w());
+//    return tf2::getYaw(quat_tf);
+//  };
+//
+//  double yaw_start = affine_to_yaw(affine_trans_start);
+//  double yaw_goal = affine_to_yaw(affine_trans_goal);
+//
+//  const auto &position_start = affine_trans_start.translation();
+//  const auto &position_goal = affine_trans_goal.translation();
+//
+//  float extend_length = 1.0f;  // m
+//  float extend_x = extend_length * std::cos(yaw_start);
+//  float extend_y = extend_length * std::sin(yaw_start);
 
 //  planner->plan(
 //      teb_local_planner::PoseSE2(
@@ -169,21 +180,8 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
 //          position_goal.y(),
 //          yaw_goal));
 
-  const auto &poses_input = msg_pose_array_hybrid_astar_->poses;
-  std::vector<geometry_msgs::PoseStamped> poses_fixed(poses_input.size());
-  std::transform(poses_input.begin(),
-                 poses_input.end(),
-                 poses_fixed.begin(),
-                 [this](const geometry_msgs::Pose &pose_in) {
-                   geometry_msgs::PoseStamped pose_out;
-                   pose_out.pose = pose_in;
-                   pose_out.header = msg_pose_array_hybrid_astar_->header;
-                   return pose_out;
-                 });
 
-  //plan(const std::vector<geometry_msgs::PoseStamped>& initial_plan, const geometry_msgs::Twist* start_vel = NULL, bool free_goal_vel=false) = 0;
-
-  planner->plan(poses_fixed);
+  planner->plan(poses_fixed_);
   ROS_INFO_STREAM("did a plan");
 }
 
@@ -345,7 +343,77 @@ void OccupyPlanner::callback_pose_stamped_goal(const geometry_msgs::PoseStamped:
 }
 
 void OccupyPlanner::callback_pose_array_hybrid_astar(const geometry_msgs::PoseArray::ConstPtr &msg_poses) {
-  msg_pose_array_hybrid_astar_ = msg_poses;
+  const auto &poses_input = msg_poses->poses;
+  if (poses_input.size() < 5) {
+    ROS_ERROR_STREAM("not enough poses in the message coming from hybrid astar");
+    return;
+  }
+
+  const std::string &frame_map = config.map_frame;
+  Eigen::Affine3f affine_to_map;
+  bool success = get_affine(affine_to_map,
+                            msg_poses->header.frame_id,
+                            frame_map,
+                            msg_poses->header.stamp);
+  if (!success) {
+    ROS_WARN_STREAM("Couldn't obtain a tf in callback_pose_array_hybrid_astar");
+    return;
+  }
+
+  auto pose_to_matrix = [](const geometry_msgs::Pose &pose) {
+    Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();
+    const auto &pos = pose.position;
+    const auto &ori = pose.orientation;
+    Eigen::Quaternionf quat(ori.w, ori.x, ori.y, ori.z);
+    mat.topLeftCorner<3, 3>() = quat.toRotationMatrix();
+    mat.topRightCorner<3, 1>() = Eigen::Vector3f(pos.x, pos.y, pos.z);
+    return mat;
+  };
+
+  auto matrix_to_pose = [](const Eigen::Matrix4f &mat) {
+    Eigen::Quaternionf quat(mat.topLeftCorner<3, 3>());
+    const Eigen::Vector3f &translation = mat.topRightCorner<3, 1>();
+    geometry_msgs::Pose pose;
+    pose.position.x = translation.x();
+    pose.position.y = translation.y();
+    pose.position.z = translation.z();
+    pose.orientation.x = quat.x();
+    pose.orientation.y = quat.y();
+    pose.orientation.z = quat.z();
+    pose.orientation.w = quat.w();
+    return pose;
+  };
+
+  // transform poses_input to map frame
+  std::vector<geometry_msgs::Pose> poses_map(poses_input.size());
+  std::transform(poses_input.begin(),
+                 poses_input.end(),
+                 poses_map.begin(),
+                 [&affine_to_map,
+                     &pose_to_matrix,
+                     &matrix_to_pose](const geometry_msgs::Pose &pose_in) {
+                   Eigen::Matrix4f mat_pose_trans = affine_to_map * pose_to_matrix(pose_in);
+                   return matrix_to_pose(mat_pose_trans);
+                 });
+
+  poses_fixed_.resize(poses_map.size());
+  std::transform(poses_map.begin(),
+                 poses_map.end(),
+                 poses_fixed_.begin(),
+                 [&msg_poses](const geometry_msgs::Pose &pose_in) {
+                   geometry_msgs::PoseStamped pose_out;
+                   pose_out.pose = pose_in;
+                   pose_out.header = msg_poses->header;
+                   return pose_out;
+                 });
+
+  std::cout << "poses_fixed_: " << poses_fixed_.size() << std::endl;
+
+  via_points.clear();
+  for (const geometry_msgs::PoseStamped &pose : poses_fixed_) {
+    via_points.emplace_back(pose.pose.position.x, pose.pose.position.y);
+  }
+
 }
 
 bool OccupyPlanner::get_affine(Eigen::Affine3f &affine,
