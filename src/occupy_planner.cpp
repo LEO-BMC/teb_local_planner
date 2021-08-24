@@ -16,7 +16,8 @@ OccupyPlanner::OccupyPlanner(std::shared_ptr<ros::NodeHandle> nh_ptr) :
 
   // setup dynamic reconfigure
   dynamic_recfg =
-      boost::make_shared<dynamic_reconfigure::Server<teb_local_planner::TebLocalPlannerReconfigureConfig> >(*nh_ptr_);
+      boost::make_shared<dynamic_reconfigure::Server<teb_local_planner::TebLocalPlannerReconfigureConfig>
+      >(*nh_ptr_);
 
   dynamic_recfg->setCallback(boost::bind(&OccupyPlanner::CB_reconfigure, this, _1, _2));
 
@@ -181,7 +182,61 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
 //          yaw_goal));
 
 
-  planner->plan(poses_fixed_);
+
+  auto transform_stamped_pose_to_tf_pose = [](const geometry_msgs::PoseStamped &stamped_pose,
+                                              const Eigen::Affine3f &affine_transform) {
+
+    geometry_msgs::Pose transformed_pose;
+
+    auto pose_to_matrix = [](const geometry_msgs::Pose &pose) {
+      Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();
+      const auto &pos = pose.position;
+      const auto &ori = pose.orientation;
+      Eigen::Quaternionf quat(ori.w, ori.x, ori.y, ori.z);
+      mat.topLeftCorner<3, 3>() = quat.toRotationMatrix();
+      mat.topRightCorner<3, 1>() = Eigen::Vector3f(pos.x, pos.y, pos.z);
+      return mat;
+    };
+
+    auto transform_pose = [&pose_to_matrix](const geometry_msgs::Pose &pose, const Eigen::Affine3f &affine) {
+      geometry_msgs::Pose pose_trans;
+      auto mat_pose = pose_to_matrix(pose);
+      Eigen::Matrix4f mat_trans = affine.matrix() * mat_pose;
+      Eigen::Quaternionf quat(mat_trans.topLeftCorner<3, 3>());
+      const Eigen::Vector3f &trans = mat_trans.topRightCorner<3, 1>();
+      pose_trans.position.x = trans.x();
+      pose_trans.position.y = trans.y();
+      pose_trans.position.z = trans.z();
+      pose_trans.orientation.x = quat.x();
+      pose_trans.orientation.y = quat.y();
+      pose_trans.orientation.z = quat.z();
+      pose_trans.orientation.w = quat.w();
+      return pose_trans;
+    };
+
+    transformed_pose = transform_pose(stamped_pose.pose, affine_transform);
+
+    tf::Pose tf_pose;
+    tf::poseMsgToTF(transformed_pose, tf_pose);
+
+    return tf_pose;
+  };
+
+  Eigen::Affine3f affine_transform;
+  if (!get_affine(affine_transform,
+                  msg_pose_stamped_start_->header.frame_id,
+                  "map",
+                  ros::Time())) {
+    return;
+  }
+
+  auto tf_start = transform_stamped_pose_to_tf_pose(*msg_pose_stamped_start_,
+                                                    affine_transform);
+
+  auto tf_goal = transform_stamped_pose_to_tf_pose(*msg_pose_stamped_goal_,
+                                                   affine_transform);
+
+  planner->plan(tf_start, tf_goal);
   ROS_INFO_STREAM("did a plan");
 }
 
@@ -277,12 +332,12 @@ void OccupyPlanner::CB_customObstacle(const costmap_converter::ObstacleArrayMsg:
     if (obst_msg->obstacles.at(i).polygon.points.size() == 1) {
       if (obst_msg->obstacles.at(i).radius == 0) {
         obst_vector.push_back(teb_local_planner::ObstaclePtr(new teb_local_planner::PointObstacle(obst_msg->obstacles.at(
-                                                                                                      i).polygon.points.front().x,
+            i).polygon.points.front().x,
                                                                                                   obst_msg->obstacles.at(
                                                                                                       i).polygon.points.front().y)));
       } else {
         obst_vector.push_back(teb_local_planner::ObstaclePtr(new teb_local_planner::CircularObstacle(obst_msg->obstacles.at(
-                                                                                                         i).polygon.points.front().x,
+            i).polygon.points.front().x,
                                                                                                      obst_msg->obstacles.at(
                                                                                                          i).polygon.points.front().y,
                                                                                                      obst_msg->obstacles.at(
