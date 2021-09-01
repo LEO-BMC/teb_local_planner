@@ -124,8 +124,8 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
     ROS_WARN_STREAM("msg_pose_stamped_start_ or msg_pose_stamped_goal_ is nullptr");
     return;
   }
-  if (poses_fixed_.size() < 5) {
-    ROS_WARN_STREAM("poses_fixed_.size() < 5");
+  if (poses_fixed_.empty()) {
+    ROS_WARN_STREAM("poses_fixed_ is empty");
     return;
   }
 //  if (msg_pose_array_hybrid_astar_ == nullptr) {
@@ -222,8 +222,8 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
     return tf_pose;
   };
 
-  Eigen::Affine3f affine_transform;
-  if (!get_affine(affine_transform,
+  Eigen::Affine3f affine_transform_start;
+  if (!get_affine(affine_transform_start,
                   msg_pose_stamped_start_->header.frame_id,
                   "map",
                   ros::Time())) {
@@ -231,10 +231,21 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
   }
 
   auto tf_start = transform_stamped_pose_to_tf_pose(*msg_pose_stamped_start_,
-                                                    affine_transform);
+                                                    affine_transform_start);
 
-  auto tf_goal = transform_stamped_pose_to_tf_pose(*msg_pose_stamped_goal_,
-                                                   affine_transform);
+//  auto tf_goal = transform_stamped_pose_to_tf_pose(*msg_pose_stamped_goal_,
+//                                                   affine_transform);
+
+  Eigen::Affine3f affine_transform_goal;
+  if (!get_affine(affine_transform_goal,
+                  poses_fixed_.back().header.frame_id,
+                  "map",
+                  ros::Time())) {
+    return;
+  }
+
+  auto tf_goal = transform_stamped_pose_to_tf_pose(poses_fixed_.back(),
+                                                   affine_transform_goal);
 
   planner->plan(tf_start, tf_goal);
   ROS_INFO_STREAM("did a plan");
@@ -399,7 +410,7 @@ void OccupyPlanner::callback_pose_stamped_goal(const geometry_msgs::PoseStamped:
 
 void OccupyPlanner::callback_pose_array_hybrid_astar(const geometry_msgs::PoseArray::ConstPtr &msg_poses) {
   const auto &poses_input = msg_poses->poses;
-  if (poses_input.size() < 5) {
+  if (poses_input.empty()) {
     ROS_ERROR_STREAM("not enough poses in the message coming from hybrid astar");
     return;
   }
@@ -455,10 +466,11 @@ void OccupyPlanner::callback_pose_array_hybrid_astar(const geometry_msgs::PoseAr
   std::transform(poses_map.begin(),
                  poses_map.end(),
                  poses_fixed_.begin(),
-                 [&msg_poses](const geometry_msgs::Pose &pose_in) {
+                 [&msg_poses, frame_map](const geometry_msgs::Pose &pose_in) {
                    geometry_msgs::PoseStamped pose_out;
                    pose_out.pose = pose_in;
                    pose_out.header = msg_poses->header;
+                   pose_out.header.frame_id = frame_map;
                    return pose_out;
                  });
 
