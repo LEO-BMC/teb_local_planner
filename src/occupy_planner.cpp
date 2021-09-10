@@ -51,6 +51,13 @@ OccupyPlanner::OccupyPlanner(std::shared_ptr<ros::NodeHandle> nh_ptr) :
           &OccupyPlanner::callback_pose_array_hybrid_astar,
           this));
 
+  sub_ptr_vehicle_odom_ = std::make_shared<ros::Subscriber>(
+      nh_ptr_->subscribe(
+          "/odom_publisher/vehicle_odom",
+          1,
+          &OccupyPlanner::callback_twist_stamped_odom,
+          this));
+
   // interactive marker server for simulated dynamic obstacles
   marker_server = std::make_shared<interactive_markers::InteractiveMarkerServer>("marker_obstacles");
 
@@ -248,6 +255,12 @@ void OccupyPlanner::CB_mainCycle(const ros::TimerEvent &e) {
                                                    affine_transform_goal);
 
   planner->plan(tf_start, tf_goal);
+  
+  geometry_msgs::Twist vehicle_odom ;
+  vehicle_odom.linear = msg_twist_stamped_odom_->twist.linear;
+  vehicle_odom.angular = msg_twist_stamped_odom_->twist.angular;
+
+  planner->plan(tf_start, tf_goal, &vehicle_odom);
   ROS_INFO_STREAM("did a plan");
 }
 
@@ -481,6 +494,10 @@ void OccupyPlanner::callback_pose_array_hybrid_astar(const geometry_msgs::PoseAr
     via_points.emplace_back(pose.pose.position.x, pose.pose.position.y);
   }
 
+}
+
+void OccupyPlanner::callback_twist_stamped_odom(const geometry_msgs::TwistStamped::ConstPtr &msg_twist) {
+  msg_twist_stamped_odom_ = msg_twist;
 }
 
 bool OccupyPlanner::get_affine(Eigen::Affine3f &affine,

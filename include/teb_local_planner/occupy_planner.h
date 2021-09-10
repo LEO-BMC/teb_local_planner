@@ -39,11 +39,13 @@ class OccupyPlanner {
 
   geometry_msgs::PoseStamped::ConstPtr msg_pose_stamped_start_;
   geometry_msgs::PoseStamped::ConstPtr msg_pose_stamped_goal_;
+  geometry_msgs::TwistStamped::ConstPtr msg_twist_stamped_odom_;
   std::vector<geometry_msgs::PoseStamped> poses_fixed_;
 
   std::shared_ptr<ros::Subscriber> sub_pose_stamped_start_;
   std::shared_ptr<ros::Subscriber> sub_pose_stamped_goal_;
   std::shared_ptr<ros::Subscriber> sub_ptr_poses_hybrid_astar_;
+  std::shared_ptr<ros::Subscriber> sub_ptr_vehicle_odom_;
 
   void CB_mainCycle(const ros::TimerEvent &e);
   void CB_publishCycle(const ros::TimerEvent &e);
@@ -68,6 +70,7 @@ class OccupyPlanner {
   void callback_pose_stamped_start(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stampeXd_start);
   void callback_pose_stamped_goal(const geometry_msgs::PoseStamped::ConstPtr &msg_pose_stamped_goal);
   void callback_pose_array_hybrid_astar(const geometry_msgs::PoseArray::ConstPtr &msg_poses);
+  void callback_twist_stamped_odom(const geometry_msgs::TwistStamped ::ConstPtr &msg_twist);
 };
 
 }  // namespace occupy_planner
